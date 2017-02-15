@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <title>Socket.IO chat</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="css/index.css">
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- <script src="https://code.jquery.com/jquery-1.11.1.js"></script> -->
+</head>
+<body>
+  <div class="login page">
+    <div class="form">
+      <h3 class="title">What's your nickname?</h3>
+      <input class="usernameInput" type="text" maxlength="14"/>
+    </div>
+  </div>
+  <div class="container" style="display:none;">
+    <div class="row">
+      <div class="col-xs-12 col-md-12 col-lg-12">
+        <div class="panel panel-primary">
+          <div class="panel-heading">
+            <span class="glyphicon glyphicon-comment"></span> Chat
+            <span id="usersOnline"></span>
+            <!-- <span id="typi" -->
+            <div class="btn-group pull-right">
+              <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown">
+                <span class="glyphicon glyphicon-chevron-down"></span>
+              </button>
+              <ul class="dropdown-menu slidedown">
+                <li><a href="http://www.jquery2dotnet.com"><span class="glyphicon glyphicon-refresh">
+                </span>Refresh</a></li>
+                <li><a href="http://www.jquery2dotnet.com"><span class="glyphicon glyphicon-ok-sign">
+                </span>Available</a></li>
+                <li><a href="http://www.jquery2dotnet.com"><span class="glyphicon glyphicon-remove">
+                </span>Busy</a></li>
+                <li><a href="http://www.jquery2dotnet.com"><span class="glyphicon glyphicon-time"></span>
+                  Away</a></li>
+                  <li class="divider"></li>
+                  <li><a href="http://www.jquery2dotnet.com"><span class="glyphicon glyphicon-off"></span>
+                    Sign Out</a></li>
+                  </ul>
+                </div>
+              </div>
+              <div class="panel-body">
+                <ul class="chat">
+                </ul>
+              </div>
+              <div class="panel-footer">
+                <div class="input-group">
+                  <input id="btn-input" type="text" class="form-control input-sm inputMessage" placeholder="Type your message here..." />
+                  <span class="input-group-btn">
+                    <button class="btn btn-warning btn-sm" id="btn-chat">
+                      Send</button>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <script type="text/javascript">
+        var socket = io();
+        $(document).ready(function(){
+          // console.log(chatMessage('hi','ayush'));
+          // console.log('hi');
+          // $('form').submit(function(){
+          $('.inputMessage').keypress(function(e){
+            if(e.keyCode == 0){
+              socket.emit('typing',$('.inputMessage').val());
+            }else if(e.keyCode == 13 && e.shiftKey === false){
+              socket.emit('chat message', $('.inputMessage').val());
+              $('.inputMessage').val('');
+              return false;
+            }else{
+              socket.emit('stop typing', $('.inputMessage').val());
+            }
+          });
+
+          socket.on('chat message', function(data){
+            notifyMe(data.name, data.data);
+            $('.chat').append(chatMessage(data.data,data.name));
+          });
+
+          $('.usernameInput').keypress(function(e){
+            // console.log(e);
+            if(e.keyCode === 13 && e.shiftKey === false){
+              // console.log($('.usernameInput').val());
+              socket.emit('addUser',$('.usernameInput').val());
+              $('.login.page').hide();
+              $('.container').show();
+            }
+          });
+
+          socket.on('userAdded', function(user){
+            // console.log(user);
+            $('#usersOnline').html(user.usersOnline+' users online');
+            // $(window).blur(function(){
+            //     notifyMe(user.name,'joined');
+            // });
+            $('.chat').append(Message('joined',user.name));
+
+          });
+          socket.on('endUser', function(user){
+            // console.log(user);
+            $('#usersOnline').html(user.usersOnline+' users online');
+            if(user != '' || user != 'undefined'){
+              $('.chat').append(Message('disconnect', user.name));
+            }
+          });
+          socket.on('typing', function(user){
+            console.log(user);
+            $('.messages').append($('<li id="'+user.name+'">').text(user.name + ' is typing....'));
+          });
+          // socket.on('stop typing', function(user){
+          //   console.log(user);
+          //   $('#'+user.name).remove();
+          // });
+
+          function chatMessage(message,name){
+            html = '<li class="left clearfix"><span class="chat-img pull-left">';
+            html += '<img src="http://placehold.it/50/55C1E7/fff&text='+name+'" alt="User Avatar" class="img-circle" />';
+            html += '</span><div class="chat-body clearfix">';
+            html += '<div class="header"><strong class="primary-font">'+name+'</strong> <small class="pull-right text-muted">';
+            html += '<span class="glyphicon glyphicon-time"></span>12 mins ago</small></div>';
+            html += '<p>'+message+'</p></div></li>';
+
+            return html;
+          }
+
+          function Message(message,name){
+            html = '<li class="left clearfix"><p>'+name +' '+message+'</p></li>';
+
+            return html;
+          }
+
+          function notifyMe(user,message) {
+            console.log(window);
+            // Let's check if the browser supports notifications
+            if (!("Notification" in window)) {
+              alert("This browser does not support desktop notification");
+            }
+            // Let's check if the user is okay to get some notification
+            else if (Notification.permission === "granted") {
+              // If it's okay let's create a notification
+              var options = {
+                body: message,
+                dir : "ltr"
+              };
+              var notification = new Notification(user + " Posted a comment",options);
+            }
+            // Otherwise, we need to ask the user for permission
+            // Note, Chrome does not implement the permission static property
+            // So we have to check for NOT 'denied' instead of 'default'
+            else if (Notification.permission !== 'denied') {
+              Notification.requestPermission(function (permission) {
+                // Whatever the user answers, we make sure we store the information
+                if (!('permission' in Notification)) {
+                  Notification.permission = permission;
+                }
+                // If the user is okay, let's create a notification
+                if (permission === "granted") {
+                  var options = {
+                    body: message,
+                    dir : "ltr"
+                  };
+                  var notification = new Notification(user + " Posted a comment",options);
+                }
+              });
+            }
+            // At last, if the user already denied any notification, and you
+            // want to be respectful there is no need to bother them any more.
+          }
+        });
+
+        </script>
+
+      </body>
+      </html>
